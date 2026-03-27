@@ -69,7 +69,7 @@ src\VaderLink\bin\Release\net8.0-windows\
 
 ## Step 6 — Make sure Space Station is ready
 
-Open **Flydigi Space Station**, connect the Vader 5 Pro, and confirm the toggle **"Allow third-party apps to take over mappings"** is enabled. You mentioned it already is — just double-checking it's still on!
+Open **Flydigi Space Station**, connect the Vader 5 Pro, and confirm the toggle **"Allow third-party apps to take over mappings"** is enabled.
 
 ---
 
@@ -81,7 +81,7 @@ Double-click `VaderLink.exe`. A small icon should appear in your **system tray**
 
 ## Step 8 — Open Keysticks
 
-Open Keysticks and look in its device list — you should see a **vJoy Device 1** listed. That's the virtual controller VaderLink is feeding. From there you can program all 23 buttons and 6 axes just like you did with the Vader 4 Pro setup!
+Open Keysticks and look in its device list — you should see a **vJoy Device 1** listed. That's the virtual controller VaderLink is feeding. From there you can program all 23 buttons and 6 axes.
 
 ---
 
