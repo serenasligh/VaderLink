@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ 
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <AssemblyName>VaderLink</AssemblyName>
+    <RootNamespace>VaderLink</RootNamespace>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <Version>1.0.0</Version>
+    <!-- ApplicationIcon: set to a real icon path once proper icons are available -->
+  </PropertyGroup>
+ 
+  <ItemGroup>
+    <PackageReference Include="HidSharp" Version="2.6.4" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+  </ItemGroup>
+ 
+  <ItemGroup>
+    <!-- vJoyInterface.dll is loaded at runtime via P/Invoke; place alongside the exe -->
+    <!-- The user must supply vJoyInterface.dll from their vJoy installation -->
+  </ItemGroup>
+ 
+  <ItemGroup>
+    <!-- Icon files are loaded at runtime; TrayIcon.cs falls back to SystemIcons.Application
+         if any file is missing. Replace the placeholder 1x1 ICOs with real icons when ready. -->
+    <Content Include="Resources\*.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+ 
+</Project>
