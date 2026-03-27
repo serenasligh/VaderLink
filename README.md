@@ -94,4 +94,4 @@ Open Keysticks and look in its device list — you should see a **vJoy Device 1*
 
 ---
 
-Let me know what happens when you run it! The first test I'd suggest is just pressing each button on the controller and watching Keysticks to confirm the right button numbers light up. The extra buttons (C, Z, M1–M4, LM, RM) should appear as buttons 12–19 in Keysticks. If anything behaves unexpectedly, report back and we can dig into it.
+The extra buttons (C, Z, M1–M4, LM, RM) should appear as buttons 12–19 in Keysticks.
