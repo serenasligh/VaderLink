@@ -1,4 +1,4 @@
-# *** V A D E R L I N K ***
+# * V A D E R L I N K *
 A niche solution for the lads n ladies out there who love Keysticks and all the extra buttons on the Vader 5 Pro gamepad. 💖🎮
 
 I'd say this proect is a colaboration with Claude Sonnet 4.6, but the reality is that I just asked nicely and she wrote everything. The only thing I can really add to her work is an explanation for my original request.
