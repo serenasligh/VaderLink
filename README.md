@@ -1,7 +1,7 @@
 # ***V A D E R L I N K***
 A niche solution for the lads n ladies out there who love Keysticks and all the extra buttons on the Vader 5 Pro gamepad. 💖🎮
 
-I'd say this proect is a colaboration with Claude Sonnet 4.6, but the reality is that I just asked nicely and she wrote everything. The only thing I can really add to her work is an explanation for my original request.
+I'd say this project is a colaboration with Claude Sonnet 4.6, but the reality is that I just asked nicely and she wrote everything. The only thing I can really add to her work is an explanation for my original request.
 
 I struggle with some chronic pain/stress that has made it difficult to sit in an upright posture continuously while using my computer. A solution I developed in the past is to remap a gamepad so it can be used to type, control a mouse, etc. and using a gamepad like this enables me to use a computer while lying down or curling up into positions that mitigate the discomfort. The **Flydigi Vader 5 Pro** is a highly featured controller with back paddles, extra MR/ML buttons, guide/function buttons, and a gyroscope: these features greatly expand the number of things I can do on a PC using only a controller. **Keysticks** is the only remapping program I've found that is versatile enough to build complex functionality into the controller, but unfortunately getting the Vader 5 Pro controller to connect to anything besides, you know, *video james* is impossible without writing custom software. So that's what I asked Sonnet for: custom software so I can keep innovating on my weird controller solution lmao. This project exposes all the inputs of the Vader 5 Pro controller in a way that allows Keysticks to read and remap the inputs from the extra buttons/features.
 
