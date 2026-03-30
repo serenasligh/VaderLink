@@ -5,6 +5,10 @@ namespace VaderLink.Hid;
 /// <summary>
 /// Wraps a HidSharp HidDevice for the Vader 5 Pro's vendor HID sideband interface
 /// (VID 0x37D7, PID 0x2401). Handles open/close and raw report I/O.
+///
+/// The controller exposes multiple HID interfaces under the same VID/PID. Only one
+/// of them accepts write commands (the vendor sideband). TryOpen() iterates all
+/// enumerated interfaces and returns the first one that successfully accepts a write.
 /// </summary>
 public sealed class VaderHidDevice : IDisposable
 {
@@ -12,51 +16,66 @@ public sealed class VaderHidDevice : IDisposable
     private HidStream?  _stream;
     private bool        _disposed;
  
-    // Buffer size: 64 bytes is sufficient; the controller sends 32-byte reports
-    // but HidSharp may return the full 64-byte USB packet.
+    // Buffer size: 64 bytes covers the full USB packet; V2 reports are 32 bytes.
     private readonly byte[] _readBuffer = new byte[64];
  
     /// <summary>
-    /// Finds and opens the Vader 5 Pro vendor HID interface.
-    /// Returns true on success. Throws nothing — errors are captured in <paramref name="error"/>.
+    /// Finds and opens the correct Vader 5 Pro vendor HID interface.
+    /// Iterates all interfaces under VID 0x37D7 / PID 0x2401 and picks the first
+    /// that accepts a write (validated by sending the V2 acquire command).
+    /// Returns true on success. Errors are captured in <paramref name="error"/>.
     /// </summary>
     public bool TryOpen(out string error)
     {
         error = string.Empty;
  
-        var list = DeviceList.Local;
-        var devices = list.GetHidDevices(V2Protocol.VendorId, V2Protocol.ProductId).ToList();
+        var devices = DeviceList.Local
+            .GetHidDevices(V2Protocol.VendorId, V2Protocol.ProductId)
+            .ToList();
  
         if (devices.Count == 0)
         {
-            error = $"No HID device found with VID 0x{V2Protocol.VendorId:X4} / PID 0x{V2Protocol.ProductId:X4}. " +
+            error = $"No HID device found with VID 0x{V2Protocol.VendorId:X4} / " +
+                    $"PID 0x{V2Protocol.ProductId:X4}. " +
                     "Is the Vader 5 Pro connected via USB dongle or cable?";
             return false;
         }
  
-        // If multiple interfaces are exposed, prefer the one whose usage page suggests
-        // a gamepad (Generic Desktop, usage page 0x01). Fall back to the first device.
-        HidDevice? chosen = devices.FirstOrDefault(d =>
-        {
-            try { return d.GetReportDescriptor().DeviceItems.Any(); }
-            catch { return false; }
-        }) ?? devices[0];
+        // The controller exposes several interfaces (keyboard emulation, mouse emulation,
+        // and the vendor data channel). Only the vendor channel accepts output writes.
+        // Try each interface in sequence; keep the first one that accepts the acquire command.
+        var attemptErrors = new List<string>();
  
-        try
+        foreach (var candidate in devices)
         {
-            var stream = chosen.Open();
-            stream.ReadTimeout  = 150; // ms — short enough to allow heartbeat checks
-            stream.WriteTimeout = 500;
-            _device = chosen;
-            _stream = stream;
-            return true;
+            HidStream? stream = null;
+            try
+            {
+                stream = candidate.Open();
+                stream.ReadTimeout  = 150; // ms — allows heartbeat timer to run between reads
+                stream.WriteTimeout = 500;
+ 
+                // Validate that this interface accepts output reports by sending the acquire
+                // command. Read-only interfaces will throw here, letting us skip them.
+                stream.Write(V2Protocol.AcquireCmd);
+ 
+                // Write succeeded — this is the vendor data channel.
+                _device = candidate;
+                _stream = stream;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                stream?.Close();
+                attemptErrors.Add($"  [{candidate.DevicePath[..Math.Min(60, candidate.DevicePath.Length)]}]: {ex.Message}");
+            }
         }
-        catch (Exception ex)
-        {
-            error = $"Failed to open vendor HID device: {ex.Message}. " +
-                    "Try running VaderLink as Administrator if the error persists.";
-            return false;
-        }
+ 
+        error = $"Tried {devices.Count} vendor HID interface(s) but none accepted the acquire command.\n" +
+                string.Join("\n", attemptErrors) + "\n\n" +
+                "Ensure 'Allow third-party apps to take over mappings' is enabled in Flydigi Space Station. " +
+                "Try running VaderLink as Administrator if this error persists.";
+        return false;
     }
  
     /// <summary>
