@@ -40,7 +40,7 @@ You'll copy it alongside the built exe in Step 5.
 
 ## Step 4 — Build VaderLink
 
-Open a Command Prompt in the repository folder (the one with `Vader5ProKeysticksLink.sln`) and run:
+Open a Command Prompt in the repository folder (the one with `VaderLink.sln`) and run:
 ```
 dotnet build src\VaderLink\VaderLink.csproj -c Release
 ```
