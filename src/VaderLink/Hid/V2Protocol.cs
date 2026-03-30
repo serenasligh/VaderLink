@@ -108,9 +108,11 @@ public static class V2Protocol
         bool btnRM = (extra & 0x80) != 0;
  
         // ── d[14]: system buttons ────────────────────────────────────────────
-        // Guide = bit 0x01 (inferred from SDL source; confirm during first test run)
-        bool btnGuide = (system & 0x01) != 0;
-        bool btnFn    = (system & 0x02) != 0;
+        // Confirmed by testing: bit 0x01 = Fn/Circle button (appears as vJoy button 11).
+        // Bit 0x02 is likely the Guide/Home button but is intercepted by Windows Xbox
+        // services and will not be delivered to applications in practice.
+        bool btnFn    = (system & 0x01) != 0;
+        bool btnGuide = (system & 0x02) != 0;
  
         return new ControllerState
         {
@@ -158,13 +160,18 @@ public static class V2Protocol
         if (raw.Length > 1 && raw[0] != Magic1 && raw[1] == Magic1)
             o = 1;
  
-        // Device info response: magic + 0xA5, not 0xEF report type
+        // Device info response: magic bytes present, report type is NOT an input report,
+        // and model ID at d[5] must match the Vader 5 Pro. This prevents misidentifying
+        // other non-EF reports (e.g. connection events) as battery updates.
         if (raw.Length - o < 12) return false;
         if (raw[o] != Magic1 || raw[o + 1] != Magic2) return false;
-        if (raw[o + 2] == ReportTypeInput) return false; // that's an input report, not info
+        if (raw[o + 2] == ReportTypeInput) return false;
  
         var d = raw[o..];
         modelId = d[5];
+ 
+        // Only trust battery data when the model ID identifies a Vader 5 Pro.
+        if (modelId != ModelIdVader5Pro) return false;
  
         // d[11]: upper nibble = charging status (0=on battery, 1=charging, 2=charged)
         //        lower nibble × 20 = percentage
