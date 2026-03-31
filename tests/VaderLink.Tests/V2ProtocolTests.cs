@@ -225,9 +225,9 @@ public class V2ProtocolTests
     }
 
     [Theory]
-    [InlineData(0,   1)]       // trigger off → vJoy min
-    [InlineData(255, 32767)]   // trigger full → vJoy max
-    [InlineData(128, 16384)]   // trigger half → vJoy centre (approx)
+    [InlineData(0,   16384)]   // trigger off  → vJoy centre (neutral; Keysticks sees "not pressed")
+    [InlineData(255, 32767)]   // trigger full  → vJoy max
+    [InlineData(128, 24608)]   // trigger half  → approx midpoint (16384 + 8224)
     public void Trigger_axis_scales_to_vJoy_range(byte raw, long expected)
     {
         long actual = Mapper.ScaleTriggerAxis(raw);

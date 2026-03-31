@@ -5,19 +5,19 @@ namespace VaderLink.Hid;
 
 /// <summary>
 /// Runs a dedicated background thread that:
-///   1. Discovers and opens the Vader 5 Pro vendor HID interface.
-///   2. Sends the V2 acquire command.
-///   3. Reads and parses V2 input reports in a tight loop.
-///   4. Publishes parsed <see cref="ControllerState"/> values to a bounded Channel.
-///   5. Sends a heartbeat every 30 s to maintain the vendor interface acquisition.
+///   1. Discovers and opens the Vader 5 Pro vendor HID interface (writable channel only).
+///   2. Reads and parses V2 input reports in a tight loop.
+///   3. Publishes parsed <see cref="ControllerState"/> values to a bounded Channel.
+///   4. Sends a heartbeat every 30 s to maintain vendor interface acquisition.
+///   5. Periodically queries battery status.
 /// </summary>
 public sealed class VaderHidReader : IDisposable
 {
     // ── Events raised on the calling thread via SynchronizationContext ────────
-    public event Action<string>?       OnConnected;    // arg: device info string
-    public event Action<string>?       OnDisconnected; // arg: reason
-    public event Action<string>?       OnError;        // arg: user-facing message
-    public event Action<byte, bool>?   OnBatteryUpdate; // (percent, isCharging)
+    public event Action<string>?     OnConnected;     // arg: device info string
+    public event Action<string>?     OnDisconnected;  // arg: reason
+    public event Action<string>?     OnError;         // arg: user-facing message
+    public event Action<byte, bool>? OnBatteryUpdate; // (percent, isCharging)
 
     // ── Channel shared with the output consumer (App.cs) ─────────────────────
     public ChannelReader<ControllerState> StateReader => _channel.Reader;
@@ -26,9 +26,9 @@ public sealed class VaderHidReader : IDisposable
     private readonly Channel<ControllerState> _channel =
         Channel.CreateBounded<ControllerState>(new BoundedChannelOptions(2)
         {
-            FullMode       = BoundedChannelFullMode.DropOldest,
-            SingleWriter   = true,
-            SingleReader   = true,
+            FullMode     = BoundedChannelFullMode.DropOldest,
+            SingleWriter = true,
+            SingleReader = true,
         });
 
     private readonly SynchronizationContext? _syncCtx;
@@ -36,14 +36,20 @@ public sealed class VaderHidReader : IDisposable
     private Thread?                          _thread;
     private bool                             _disposed;
 
-    // Battery state carried between reports
+    // Battery state — updated from device-info responses only.
     private byte _batteryPercent;
     private bool _isCharging;
+    private bool _batteryKnown; // true once we've received a valid battery reading
 
-    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
+    // Error debounce — suppress identical consecutive errors within the window.
+    private string   _lastErrorMessage  = string.Empty;
+    private DateTime _lastErrorTime     = DateTime.MinValue;
+    private static readonly TimeSpan ErrorDebounceInterval = TimeSpan.FromSeconds(15);
+
+    private static readonly TimeSpan HeartbeatInterval   = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan BatteryPollInterval = TimeSpan.FromSeconds(60);
-    private static readonly TimeSpan AcquireTimeout = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan AcquireTimeout      = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan RetryDelay          = TimeSpan.FromSeconds(3);
 
     public VaderHidReader()
     {
@@ -81,22 +87,19 @@ public sealed class VaderHidReader : IDisposable
         {
             using var device = new VaderHidDevice();
 
-            // ── Connect ───────────────────────────────────────────────────────
+            // ── Connect + acquire ─────────────────────────────────────────────
+            // TryOpen() iterates all candidate interfaces and returns the first
+            // that successfully accepts the V2 acquire command write.
             if (!device.TryOpen(out string openError))
             {
-                Post(OnError, openError);
+                PostErrorDebounced(openError);
                 WaitOrCancel(RetryDelay, token);
                 continue;
             }
 
-            // ── Acquire vendor interface ──────────────────────────────────────
-            try { device.Write(V2Protocol.AcquireCmd); }
-            catch (Exception ex)
-            {
-                Post(OnError, $"Failed to send acquire command: {ex.Message}");
-                WaitOrCancel(RetryDelay, token);
-                continue;
-            }
+            // Request device info immediately so battery shows up quickly.
+            try { device.Write(V2Protocol.DeviceInfoCmd); }
+            catch { /* non-fatal — battery will just update on next scheduled poll */ }
 
             Post(OnConnected, "Vader 5 Pro vendor HID acquired");
 
@@ -114,7 +117,7 @@ public sealed class VaderHidReader : IDisposable
 
                     if (n > 0)
                     {
-                        // Try parsing as input report
+                        // Try input report first.
                         var state = V2Protocol.TryParseInputReport(data, _batteryPercent, _isCharging);
                         if (state.HasValue)
                         {
@@ -123,15 +126,15 @@ public sealed class VaderHidReader : IDisposable
                         }
                         else
                         {
-                            // Try parsing as device-info / battery response
+                            // Try device-info / battery response.
                             if (V2Protocol.TryParseDeviceInfo(data, out _, out byte pct, out bool charging))
                             {
-                                if (pct != _batteryPercent || charging != _isCharging)
-                                {
-                                    _batteryPercent = pct;
-                                    _isCharging     = charging;
+                                bool changed = pct != _batteryPercent || charging != _isCharging || !_batteryKnown;
+                                _batteryPercent = pct;
+                                _isCharging     = charging;
+                                _batteryKnown   = true;
+                                if (changed)
                                     Post(OnBatteryUpdate, (pct, charging));
-                                }
                             }
                         }
                     }
@@ -141,22 +144,22 @@ public sealed class VaderHidReader : IDisposable
                     if (!everReceivedInputReport &&
                         DateTime.UtcNow - acquireStart > AcquireTimeout)
                     {
-                        Post(OnError,
+                        PostErrorDebounced(
                             "No data received from Vader 5 Pro enhanced mode.\n\n" +
                             "Please open Flydigi Space Station and enable:\n" +
                             "  \"Allow third-party apps to take over mappings\"\n\n" +
                             "Then reconnect the controller.");
-                        break; // retry loop
+                        break;
                     }
 
-                    // Heartbeat
+                    // Heartbeat: re-send acquire every 30 s to keep the channel active.
                     if (DateTime.UtcNow - lastHeartbeat > HeartbeatInterval)
                     {
                         device.Write(V2Protocol.AcquireCmd);
                         lastHeartbeat = DateTime.UtcNow;
                     }
 
-                    // Periodic battery poll
+                    // Periodic battery poll.
                     if (DateTime.UtcNow - lastBatteryPoll > BatteryPollInterval)
                     {
                         device.Write(V2Protocol.DeviceInfoCmd);
@@ -170,11 +173,12 @@ public sealed class VaderHidReader : IDisposable
             }
             catch (Exception ex) when (!token.IsCancellationRequested)
             {
-                Post(OnError, $"Unexpected read error: {ex.Message}");
+                PostErrorDebounced($"Unexpected read error: {ex.Message}");
             }
             finally
             {
                 try { device.Write(V2Protocol.ReleaseCmd); } catch { /* best-effort */ }
+                _batteryKnown = false; // reset so "--" shows again on next connect
                 Post(OnDisconnected, "Disconnected");
             }
 
@@ -188,7 +192,22 @@ public sealed class VaderHidReader : IDisposable
     private static void WaitOrCancel(TimeSpan delay, CancellationToken token)
     {
         try { Task.Delay(delay, token).GetAwaiter().GetResult(); }
-        catch (OperationCanceledException) { /* normal */ }
+        catch (OperationCanceledException) { /* normal shutdown */ }
+    }
+
+    /// <summary>
+    /// Fires OnError, but suppresses the notification if the same message was already
+    /// shown within <see cref="ErrorDebounceInterval"/>. Prevents notification floods
+    /// during rapid retry loops.
+    /// </summary>
+    private void PostErrorDebounced(string message)
+    {
+        var now = DateTime.UtcNow;
+        if (message == _lastErrorMessage && now - _lastErrorTime < ErrorDebounceInterval)
+            return;
+        _lastErrorMessage = message;
+        _lastErrorTime    = now;
+        Post(OnError, message);
     }
 
     private void Post(Action<string>? handler, string arg)

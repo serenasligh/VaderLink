@@ -41,22 +41,26 @@ public static class Mapper
 
     /// <summary>
     /// Converts a signed int16 stick axis (–32768..32767) to the vJoy 1..32767 range.
+    /// Pass <paramref name="invert"/> = true for Y axes: HID convention is Y-down = positive,
+    /// but most software (including Keysticks) expects Y-up = positive.
     /// </summary>
-    public static long ScaleStickAxis(short raw)
+    public static long ScaleStickAxis(short raw, bool invert = false)
     {
-        // Map –32768..32767 → 1..32767 linearly.
-        // raw + 32768 gives 0..65535; scale to 1..32767.
-        long shifted = (long)raw + 32768L;
+        // Map –32768..32767 → 0..65535, then scale to vJoy 1..32767.
+        long shifted = (long)raw + 32768L; // 0..65535
+        if (invert) shifted = 65535L - shifted; // flip direction without int16 overflow risk
         return VJoyAxisMin + shifted * (VJoyAxisMax - VJoyAxisMin) / 65535L;
     }
 
     /// <summary>
-    /// Converts a trigger byte (0..255) to the vJoy 1..32767 range.
-    /// 0 maps to 1 (axis minimum); 255 maps to 32767 (axis maximum).
+    /// Converts a trigger byte (0..255) to the vJoy centre..max range (16384..32767).
+    /// Trigger at rest (0) sits exactly at axis centre, which Keysticks treats as neutral.
+    /// Fully pressed (255) reaches axis maximum. This prevents the "always deflected"
+    /// appearance in Keysticks that occurred when rest mapped to axis minimum.
     /// </summary>
     public static long ScaleTriggerAxis(byte raw)
     {
-        return VJoyAxisMin + (long)raw * (VJoyAxisMax - VJoyAxisMin) / 255L;
+        return VJoyAxisCentre + (long)raw * (VJoyAxisMax - VJoyAxisCentre) / 255L;
     }
 
     /// <summary>
@@ -88,9 +92,9 @@ public static class Mapper
     {
         // ── Axes ───────────────────────────────────────────────────────────────
         long axisX  = ScaleStickAxis(s.LeftStickX);
-        long axisY  = ScaleStickAxis(s.LeftStickY);
+        long axisY  = ScaleStickAxis(s.LeftStickY,  invert: true); // HID Y-down → Y-up
         long axisRx = ScaleStickAxis(s.RightStickX);
-        long axisRy = ScaleStickAxis(s.RightStickY);
+        long axisRy = ScaleStickAxis(s.RightStickY, invert: true); // HID Y-down → Y-up
         long axisZ  = ScaleTriggerAxis(leftTrigger);
         long axisRz = ScaleTriggerAxis(rightTrigger);
 

@@ -12,7 +12,8 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Version>1.0.0</Version>
-    <!-- ApplicationIcon: set to a real icon path once proper icons are available -->
+    <!-- Embedded exe icon. Run tools/Convert-Icon.py first to generate this file. -->
+    <ApplicationIcon>Resources\icon_connected.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
