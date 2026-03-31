@@ -41,22 +41,38 @@ public sealed class XInputPoller : IDisposable
         _thread = null;
     }
 
+    // Active XInput slot. -1 means "unknown — need to scan".
+    private int _activeSlot = -1;
+
     private void PollLoop()
     {
         var token = _cts!.Token;
 
         while (!token.IsCancellationRequested)
         {
-            var result = XInputGetState(0, out var state);
+            // If we don't have a confirmed slot, search all four.
+            if (_activeSlot < 0)
+                _activeSlot = FindActiveSlot();
 
-            if (result == 0) // ERROR_SUCCESS
+            bool gotData = false;
+            if (_activeSlot >= 0)
             {
-                LeftTrigger  = state.Gamepad.LeftTrigger;
-                RightTrigger = state.Gamepad.RightTrigger;
+                var result = XInputGetState((uint)_activeSlot, out var state);
+                if (result == 0) // ERROR_SUCCESS
+                {
+                    LeftTrigger  = state.Gamepad.LeftTrigger;
+                    RightTrigger = state.Gamepad.RightTrigger;
+                    gotData = true;
+                }
+                else
+                {
+                    // Slot went away — re-scan next iteration.
+                    _activeSlot = -1;
+                }
             }
-            else
+
+            if (!gotData)
             {
-                // Controller not connected via XInput (e.g., dongle out of range)
                 LeftTrigger  = 0;
                 RightTrigger = 0;
             }
@@ -64,6 +80,20 @@ public sealed class XInputPoller : IDisposable
             try { Task.Delay(PollInterval, token).GetAwaiter().GetResult(); }
             catch (OperationCanceledException) { break; }
         }
+    }
+
+    /// <summary>
+    /// Scans XInput slots 0–3 and returns the index of the first connected
+    /// controller, or -1 if none are found.
+    /// </summary>
+    private static int FindActiveSlot()
+    {
+        for (uint i = 0; i < 4; i++)
+        {
+            if (XInputGetState(i, out _) == 0)
+                return (int)i;
+        }
+        return -1;
     }
 
     public void Dispose()

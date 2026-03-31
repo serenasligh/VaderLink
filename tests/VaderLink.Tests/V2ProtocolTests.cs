@@ -225,9 +225,9 @@ public class V2ProtocolTests
     }
 
     [Theory]
-    [InlineData(0,   16384)]   // trigger off  → vJoy centre (neutral; Keysticks sees "not pressed")
-    [InlineData(255, 32767)]   // trigger full  → vJoy max
-    [InlineData(128, 24608)]   // trigger half  → approx midpoint (16384 + 8224)
+    [InlineData(0,   16384)]   // trigger off   → vJoy centre (neutral; Keysticks sees "not pressed")
+    [InlineData(255, 1)]       // trigger full  → vJoy min   (max deflection downward from centre)
+    [InlineData(128, 8192)]    // trigger half  → approx midpoint (16384 - 8192)
     public void Trigger_axis_scales_to_vJoy_range(byte raw, long expected)
     {
         long actual = Mapper.ScaleTriggerAxis(raw);
@@ -254,11 +254,12 @@ public class V2ProtocolTests
     {
         var state = new ControllerState
         {
-            ButtonA = true,    // bit 0  → vJoy button 1
-            ButtonB = true,    // bit 1  → vJoy button 2
+            ButtonA  = true,   // bit 0  → vJoy button 1
+            ButtonB  = true,   // bit 1  → vJoy button 2
             ButtonLB = true,   // bit 4  → vJoy button 5
-            ButtonC = true,    // bit 11 → vJoy button 12
+            ButtonC  = true,   // bit 11 → vJoy button 12
             ButtonRM = true,   // bit 18 → vJoy button 19
+            ButtonFn = true,   // bit 23 → vJoy button 24 (Fn/Circle)
         };
 
         var report = Mapper.Map(in state, leftTrigger: 0, rightTrigger: 0);
@@ -268,6 +269,7 @@ public class V2ProtocolTests
         Assert.True((report.Buttons & (1u << 4))  != 0,  "LB");
         Assert.True((report.Buttons & (1u << 11)) != 0,  "C");
         Assert.True((report.Buttons & (1u << 18)) != 0,  "RM");
+        Assert.True((report.Buttons & (1u << 23)) != 0,  "Fn/Circle");
 
         // Unset buttons should be 0
         Assert.True((report.Buttons & (1u << 2))  == 0,  "X should be off");
