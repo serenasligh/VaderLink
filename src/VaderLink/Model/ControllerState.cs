@@ -43,9 +43,11 @@ public readonly record struct ControllerState
     public bool ButtonRM { get; init; }
 
     // ── System buttons (d[14] of V2 report) ─────────────────────────────────
-    // Bit 0x01 = Fn / Circle button (confirmed by testing: appears as vJoy button 11).
-    // Bit 0x02 = Guide / Home button (typically intercepted by Windows Xbox services).
-    // These replace the earlier misnamed ButtonGuide / ButtonFn pair.
+    // Bit 0x01 = Fn / Circle button. Bit 0x02 = Turbo / Guide button.
+
+    // ── Triggers (d[15] = left, d[16] = right; 0 = released, 255 = full press) ─
+    public byte LeftTrigger  { get; init; }
+    public byte RightTrigger { get; init; }
 
     // ── Battery (populated by the reader from device-info responses) ──────────
     public byte BatteryPercent { get; init; }

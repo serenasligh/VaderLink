@@ -18,10 +18,12 @@ public class V2ProtocolTests
     private static byte[] MakeReport(
         short lx = 0, short ly = 0,
         short rx = 0, short ry = 0,
-        byte faceDpad = 0,
-        byte misc     = 0,
-        byte extra    = 0,
-        byte system   = 0)
+        byte faceDpad   = 0,
+        byte misc       = 0,
+        byte extra      = 0,
+        byte system     = 0,
+        byte ltrigger   = 0,
+        byte rtrigger   = 0)
     {
         var data = new byte[32];
         data[0] = 0x5A;  // Magic1
@@ -35,6 +37,8 @@ public class V2ProtocolTests
         data[12] = misc;
         data[13] = extra;
         data[14] = system;
+        data[15] = ltrigger;
+        data[16] = rtrigger;
         return data;
     }
 
@@ -211,6 +215,21 @@ public class V2ProtocolTests
         Assert.True(state!.Value.ButtonM1);
     }
 
+    // ── Trigger parsing (d[15]/d[16]) ─────────────────────────────────────────
+
+    [Theory]
+    [InlineData(0,   0,   0,   0)]
+    [InlineData(255, 0,   255, 0)]
+    [InlineData(0,   255, 0,   255)]
+    [InlineData(128, 64,  128, 64)]
+    public void Triggers_parse_from_bytes_15_and_16(
+        byte lt, byte rt, byte expectedLt, byte expectedRt)
+    {
+        var state = V2Protocol.TryParseInputReport(MakeReport(ltrigger: lt, rtrigger: rt))!.Value;
+        Assert.Equal(expectedLt, state.LeftTrigger);
+        Assert.Equal(expectedRt, state.RightTrigger);
+    }
+
     // ── Mapper axis scaling ───────────────────────────────────────────────────
 
     [Theory]
@@ -262,7 +281,7 @@ public class V2ProtocolTests
             ButtonFn = true,   // bit 23 → vJoy button 24 (Fn/Circle)
         };
 
-        var report = Mapper.Map(in state, leftTrigger: 0, rightTrigger: 0);
+        var report = Mapper.Map(in state);
 
         Assert.True((report.Buttons & (1u << 0))  != 0,  "Button A");
         Assert.True((report.Buttons & (1u << 1))  != 0,  "Button B");
@@ -274,5 +293,21 @@ public class V2ProtocolTests
         // Unset buttons should be 0
         Assert.True((report.Buttons & (1u << 2))  == 0,  "X should be off");
         Assert.True((report.Buttons & (1u << 12)) == 0,  "Z should be off");
+    }
+
+    [Fact]
+    public void Trigger_round_trip_through_mapper()
+    {
+        // Fully pressed triggers should map to vJoy axis minimum (1).
+        var state = new ControllerState { LeftTrigger = 255, RightTrigger = 255 };
+        var report = Mapper.Map(in state);
+        Assert.Equal(1L, report.AxisZ);
+        Assert.Equal(1L, report.AxisRz);
+
+        // Released triggers should map to vJoy axis centre (16384).
+        var released = new ControllerState { LeftTrigger = 0, RightTrigger = 0 };
+        var rReport = Mapper.Map(in released);
+        Assert.Equal(16384L, rReport.AxisZ);
+        Assert.Equal(16384L, rReport.AxisRz);
     }
 }

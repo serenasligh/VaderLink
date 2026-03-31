@@ -5,7 +5,6 @@ using VaderLink.Mapping;
 using VaderLink.Model;
 using VaderLink.Output;
 using VaderLink.Tray;
-using VaderLink.XInput;
 
 namespace VaderLink;
 
@@ -16,7 +15,6 @@ namespace VaderLink;
 /// Threading overview:
 ///   UI thread      — WinForms message pump, TrayIcon, settings
 ///   HID reader     — VaderHidReader (internal thread)
-///   XInput poller  — XInputPoller (internal thread)
 ///   Output thread  — this class, ConsumerLoop()
 /// </summary>
 public sealed class App : IDisposable
@@ -24,7 +22,6 @@ public sealed class App : IDisposable
     private readonly AppConfig       _config;
     private readonly TrayIcon        _trayIcon;
     private readonly VaderHidReader  _hidReader;
-    private readonly XInputPoller    _xInputPoller;
     private readonly IVirtualController _virtualController;
 
     private Thread?                  _outputThread;
@@ -36,7 +33,6 @@ public sealed class App : IDisposable
         _config       = config;
         _trayIcon     = new TrayIcon(config);
         _hidReader    = new VaderHidReader();
-        _xInputPoller = new XInputPoller();
         _virtualController = new VJoyController(config.VJoyDeviceId);
 
         // Wire HID reader events → tray icon (all callbacks arrive on UI thread
@@ -65,7 +61,6 @@ public sealed class App : IDisposable
         }
 
         // Start background workers
-        _xInputPoller.Start();
         _hidReader.Start();
 
         // Start output consumer thread
@@ -105,10 +100,7 @@ public sealed class App : IDisposable
                 break;
             }
 
-            var report = Mapper.Map(
-                in state,
-                _xInputPoller.LeftTrigger,
-                _xInputPoller.RightTrigger);
+            var report = Mapper.Map(in state);
 
             _virtualController.Submit(in report);
         }
@@ -135,7 +127,6 @@ public sealed class App : IDisposable
         _outputThread?.Join(TimeSpan.FromSeconds(3));
 
         _hidReader.Dispose();
-        _xInputPoller.Dispose();
         _virtualController.Dispose();
         _trayIcon.Dispose();
     }

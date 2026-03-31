@@ -85,18 +85,18 @@ public static class Mapper
     }
 
     /// <summary>
-    /// Builds a complete <see cref="VJoyReport"/> from a controller state snapshot
-    /// and the latest trigger bytes from the XInput poller.
+    /// Builds a complete <see cref="VJoyReport"/> from a controller state snapshot.
+    /// Trigger axes are read directly from the state (d[15]/d[16] of the V2 HID report).
     /// </summary>
-    public static VJoyReport Map(in ControllerState s, byte leftTrigger, byte rightTrigger)
+    public static VJoyReport Map(in ControllerState s)
     {
         // ── Axes ───────────────────────────────────────────────────────────────
         long axisX  = ScaleStickAxis(s.LeftStickX);
         long axisY  = ScaleStickAxis(s.LeftStickY,  invert: true); // HID Y-down → Y-up
         long axisRx = ScaleStickAxis(s.RightStickX);
         long axisRy = ScaleStickAxis(s.RightStickY, invert: true); // HID Y-down → Y-up
-        long axisZ  = ScaleTriggerAxis(leftTrigger);
-        long axisRz = ScaleTriggerAxis(rightTrigger);
+        long axisZ  = ScaleTriggerAxis(s.LeftTrigger);
+        long axisRz = ScaleTriggerAxis(s.RightTrigger);
 
         // ── Buttons (vJoy uses a bitmask; button N = bit N-1) ─────────────────
         uint buttons = 0;

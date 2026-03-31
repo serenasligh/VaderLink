@@ -108,11 +108,14 @@ public static class V2Protocol
         bool btnRM = (extra & 0x80) != 0;
 
         // ── d[14]: system buttons ────────────────────────────────────────────
-        // Confirmed by testing: bit 0x01 = Fn/Circle button (appears as vJoy button 11).
-        // Bit 0x02 is likely the Guide/Home button but is intercepted by Windows Xbox
-        // services and will not be delivered to applications in practice.
+        // Bit 0x01 = Fn/Circle button. Bit 0x02 = Turbo/Guide button.
         bool btnFn    = (system & 0x01) != 0;
         bool btnGuide = (system & 0x02) != 0;
+
+        // ── d[15..16]: trigger axes ──────────────────────────────────────────
+        // Single bytes, 0 = released, 255 = fully pressed.
+        byte leftTrigger  = d[15];
+        byte rightTrigger = d[16];
 
         return new ControllerState
         {
@@ -133,6 +136,9 @@ public static class V2Protocol
             ButtonM1 = btnM1, ButtonM2 = btnM2,
             ButtonM3 = btnM3, ButtonM4 = btnM4,
             ButtonLM = btnLM, ButtonRM = btnRM,
+
+            LeftTrigger  = leftTrigger,
+            RightTrigger = rightTrigger,
 
             BatteryPercent = batteryPercent,
             IsCharging     = isCharging,
