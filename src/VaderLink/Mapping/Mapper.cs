@@ -53,12 +53,14 @@ public static class Mapper
     }
  
     /// <summary>
-    /// Converts a trigger byte (0..255) to the vJoy 1..32767 range.
-    /// 0 maps to 1 (axis minimum); 255 maps to 32767 (axis maximum).
+    /// Converts a trigger byte (0..255) to the vJoy centre..max range (16384..32767).
+    /// Trigger at rest (0) sits exactly at axis centre, which Keysticks treats as neutral.
+    /// Fully pressed (255) reaches axis maximum. This prevents the "always deflected"
+    /// appearance in Keysticks that occurred when rest mapped to axis minimum.
     /// </summary>
     public static long ScaleTriggerAxis(byte raw)
     {
-        return VJoyAxisMin + (long)raw * (VJoyAxisMax - VJoyAxisMin) / 255L;
+        return VJoyAxisCentre + (long)raw * (VJoyAxisMax - VJoyAxisCentre) / 255L;
     }
  
     /// <summary>
