@@ -113,7 +113,26 @@ public static class V2Protocol
         // services and will not be delivered to applications in practice.
         bool btnFn    = (system & 0x01) != 0;
         bool btnGuide = (system & 0x02) != 0;
+<<<<<<< claude/vader-keysticks-integration-qgeXa
+
+        // ── d[15..16]: trigger axes ──────────────────────────────────────────
+        // Single bytes, 0 = released, 255 = fully pressed.
+        byte leftTrigger  = d[15];
+        byte rightTrigger = d[16];
+
+        // ── d[17..28]: motion sensors (int16 LE, signed) ─────────────────────
+        // SDL3 lays out gyro as X/Z/Y and accel as X/Z/Y (not X/Y/Z).
+        // We re-order into conventional X/Y/Z named fields here.
+        short gyroX  = BinaryPrimitives.ReadInt16LittleEndian(d[17..19]);
+        short gyroZ  = BinaryPrimitives.ReadInt16LittleEndian(d[19..21]);
+        short gyroY  = BinaryPrimitives.ReadInt16LittleEndian(d[21..23]);
+        short accelX = BinaryPrimitives.ReadInt16LittleEndian(d[23..25]);
+        short accelZ = BinaryPrimitives.ReadInt16LittleEndian(d[25..27]);
+        short accelY = BinaryPrimitives.ReadInt16LittleEndian(d[27..29]);
+
+=======
  
+>>>>>>> main
         return new ControllerState
         {
             LeftStickX  = lx, LeftStickY  = ly,
@@ -133,7 +152,17 @@ public static class V2Protocol
             ButtonM1 = btnM1, ButtonM2 = btnM2,
             ButtonM3 = btnM3, ButtonM4 = btnM4,
             ButtonLM = btnLM, ButtonRM = btnRM,
+<<<<<<< claude/vader-keysticks-integration-qgeXa
+
+            LeftTrigger  = leftTrigger,
+            RightTrigger = rightTrigger,
+
+            GyroX  = gyroX,  GyroY  = gyroY,  GyroZ  = gyroZ,
+            AccelX = accelX, AccelY = accelY,  AccelZ = accelZ,
+
+=======
  
+>>>>>>> main
             BatteryPercent = batteryPercent,
             IsCharging     = isCharging,
             TimestampTicks = DateTime.UtcNow.Ticks,

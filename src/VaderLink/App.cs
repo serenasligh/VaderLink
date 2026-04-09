@@ -24,9 +24,15 @@ public sealed class App : IDisposable
     private readonly AppConfig       _config;
     private readonly TrayIcon        _trayIcon;
     private readonly VaderHidReader  _hidReader;
+<<<<<<< claude/vader-keysticks-integration-qgeXa
+    private readonly IVirtualController  _virtualController;
+    private readonly IVirtualController? _motionController; // null when motion disabled
+
+=======
     private readonly XInputPoller    _xInputPoller;
     private readonly IVirtualController _virtualController;
  
+>>>>>>> main
     private Thread?                  _outputThread;
     private CancellationTokenSource? _cts;
     private bool                     _disposed;
@@ -38,7 +44,18 @@ public sealed class App : IDisposable
         _hidReader    = new VaderHidReader();
         _xInputPoller = new XInputPoller();
         _virtualController = new VJoyController(config.VJoyDeviceId);
+<<<<<<< claude/vader-keysticks-integration-qgeXa
+
+        if (config.EnableMotion)
+        {
+            _motionController = new VJoyController(config.MotionVJoyDeviceId);
+            _motionController.ErrorOccurred += msg =>
+                _trayIcon.SetError($"vJoy motion error: {msg}");
+        }
+
+=======
  
+>>>>>>> main
         // Wire HID reader events → tray icon (all callbacks arrive on UI thread
         // because VaderHidReader captures SynchronizationContext on construction).
         _hidReader.OnConnected    += _trayIcon.SetConnected;
@@ -61,7 +78,14 @@ public sealed class App : IDisposable
             _trayIcon.SetError(
                 $"Could not connect vJoy Device {_config.VJoyDeviceId}:\n\n{vJoyError}\n\n" +
                 "See the README for vJoy installation instructions.");
-            // Don't abort — carry on so tray shows the error and user can fix and restart
+        }
+
+        if (_motionController is not null &&
+            !_motionController.Connect(out string motionError))
+        {
+            _trayIcon.SetError(
+                $"Could not connect vJoy Motion Device {_config.MotionVJoyDeviceId}:\n\n{motionError}\n\n" +
+                "In 'Configure vJoy' add Device 2 with axes X/Y/Z/Rx/Ry/Rz enabled.");
         }
  
         // Start background workers
@@ -104,12 +128,21 @@ public sealed class App : IDisposable
             {
                 break;
             }
+<<<<<<< claude/vader-keysticks-integration-qgeXa
+
+            var report = Mapper.Map(in state);
+
+            if (_motionController is not null)
+                _motionController.Submit(Mapper.MotionMap(in state));
+
+=======
  
             var report = Mapper.Map(
                 in state,
                 _xInputPoller.LeftTrigger,
                 _xInputPoller.RightTrigger);
  
+>>>>>>> main
             _virtualController.Submit(in report);
         }
     }
@@ -137,6 +170,7 @@ public sealed class App : IDisposable
         _hidReader.Dispose();
         _xInputPoller.Dispose();
         _virtualController.Dispose();
+        _motionController?.Dispose();
         _trayIcon.Dispose();
     }
 }

@@ -43,10 +43,31 @@ public readonly record struct ControllerState
     public bool ButtonRM { get; init; }
  
     // ── System buttons (d[14] of V2 report) ─────────────────────────────────
+<<<<<<< claude/vader-keysticks-integration-qgeXa
+    // Bit 0x01 = Fn / Circle button. Bit 0x02 = Turbo / Guide button.
+
+    // ── Triggers (d[15] = left, d[16] = right; 0 = released, 255 = full press) ─
+    public byte LeftTrigger  { get; init; }
+    public byte RightTrigger { get; init; }
+
+    // ── Motion sensors (d[17..28] of V2 report, raw int16 signed) ────────────
+    // Gyroscope reports angular velocity; accelerometer reports linear acceleration
+    // (including gravity). Both use the controller's local coordinate frame.
+    // Enable via Settings → Enable motion (gyro/accel) and configure a second
+    // vJoy device (Device 2) with axes X/Y/Z/Rx/Ry/Rz enabled.
+    public short GyroX  { get; init; }
+    public short GyroY  { get; init; }
+    public short GyroZ  { get; init; }
+    public short AccelX { get; init; }
+    public short AccelY { get; init; }
+    public short AccelZ { get; init; }
+
+=======
     // Bit 0x01 = Fn / Circle button (confirmed by testing: appears as vJoy button 11).
     // Bit 0x02 = Guide / Home button (typically intercepted by Windows Xbox services).
     // These replace the earlier misnamed ButtonGuide / ButtonFn pair.
  
+>>>>>>> main
     // ── Battery (populated by the reader from device-info responses) ──────────
     public byte BatteryPercent { get; init; }
     public bool IsCharging     { get; init; }

@@ -137,4 +137,34 @@ public static class Mapper
             Pov     = pov,
         };
     }
+
+    /// <summary>
+    /// Builds a <see cref="VJoyReport"/> for the motion (gyro/accel) vJoy device.
+    ///
+    /// vJoy Device 2 axis assignment:
+    ///   X  = Gyro X  (angular velocity, roll axis)
+    ///   Y  = Gyro Y  (angular velocity, pitch axis)
+    ///   Z  = Gyro Z  (angular velocity, yaw axis)
+    ///   Rx = Accel X (linear acceleration, lateral)
+    ///   Ry = Accel Y (linear acceleration, vertical)
+    ///   Rz = Accel Z (linear acceleration, forward/back)
+    ///
+    /// Raw sensor values are int16 signed; the same ScaleStickAxis formula maps
+    /// them to the vJoy 1..32767 range with centre at 16384 (sensor at rest).
+    /// Tune the deadzone for each axis in Keysticks to filter sensor noise.
+    /// </summary>
+    public static VJoyReport MotionMap(in ControllerState s)
+    {
+        return new VJoyReport
+        {
+            AxisX  = ScaleStickAxis(s.GyroX),
+            AxisY  = ScaleStickAxis(s.GyroY),
+            AxisZ  = ScaleStickAxis(s.GyroZ),
+            AxisRx = ScaleStickAxis(s.AccelX),
+            AxisRy = ScaleStickAxis(s.AccelY),
+            AxisRz = ScaleStickAxis(s.AccelZ),
+            Buttons = 0,
+            Pov     = PovNeutral,
+        };
+    }
 }
