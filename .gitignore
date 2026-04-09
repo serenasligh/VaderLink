@@ -1,0 +1,22 @@
+# Build outputs
+bin/
+obj/
+*.user
+
+# NuGet
+*.nupkg
+**/packages/
+.nuget/
+
+# Rider / VS / VS Code
+.idea/
+.vscode/
+*.suo
+*.sln.ide/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# User-supplied runtime dependency (not committed; see README)
+**/vJoyInterface.dll
