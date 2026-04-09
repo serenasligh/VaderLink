@@ -117,6 +117,16 @@ public static class V2Protocol
         byte leftTrigger  = d[15];
         byte rightTrigger = d[16];
 
+        // ── d[17..28]: motion sensors (int16 LE, signed) ─────────────────────
+        // SDL3 lays out gyro as X/Z/Y and accel as X/Z/Y (not X/Y/Z).
+        // We re-order into conventional X/Y/Z named fields here.
+        short gyroX  = BinaryPrimitives.ReadInt16LittleEndian(d[17..19]);
+        short gyroZ  = BinaryPrimitives.ReadInt16LittleEndian(d[19..21]);
+        short gyroY  = BinaryPrimitives.ReadInt16LittleEndian(d[21..23]);
+        short accelX = BinaryPrimitives.ReadInt16LittleEndian(d[23..25]);
+        short accelZ = BinaryPrimitives.ReadInt16LittleEndian(d[25..27]);
+        short accelY = BinaryPrimitives.ReadInt16LittleEndian(d[27..29]);
+
         return new ControllerState
         {
             LeftStickX  = lx, LeftStickY  = ly,
@@ -139,6 +149,9 @@ public static class V2Protocol
 
             LeftTrigger  = leftTrigger,
             RightTrigger = rightTrigger,
+
+            GyroX  = gyroX,  GyroY  = gyroY,  GyroZ  = gyroZ,
+            AccelX = accelX, AccelY = accelY,  AccelZ = accelZ,
 
             BatteryPercent = batteryPercent,
             IsCharging     = isCharging,

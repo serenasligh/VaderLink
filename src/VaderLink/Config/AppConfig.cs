@@ -17,4 +17,14 @@ public sealed class AppConfig
 
     /// <summary>Show a balloon tip when the controller connects/disconnects.</summary>
     public bool ShowConnectionNotifications { get; set; } = true;
+
+    /// <summary>
+    /// Enable the motion (gyro/accel) output to a second vJoy device.
+    /// Requires a second vJoy device configured in "Configure vJoy" with
+    /// axes X/Y/Z/Rx/Ry/Rz enabled. Default: false (opt-in).
+    /// </summary>
+    public bool EnableMotion { get; set; } = false;
+
+    /// <summary>vJoy device number used for gyro/accel axes. Default: 2.</summary>
+    public uint MotionVJoyDeviceId { get; set; } = 2;
 }

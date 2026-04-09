@@ -18,27 +18,36 @@ public class V2ProtocolTests
     private static byte[] MakeReport(
         short lx = 0, short ly = 0,
         short rx = 0, short ry = 0,
-        byte faceDpad   = 0,
-        byte misc       = 0,
-        byte extra      = 0,
-        byte system     = 0,
-        byte ltrigger   = 0,
-        byte rtrigger   = 0)
+        byte  faceDpad  = 0,
+        byte  misc      = 0,
+        byte  extra     = 0,
+        byte  system    = 0,
+        byte  ltrigger  = 0,
+        byte  rtrigger  = 0,
+        short gyroX     = 0, short gyroY = 0, short gyroZ = 0,
+        short accelX    = 0, short accelY = 0, short accelZ = 0)
     {
         var data = new byte[32];
         data[0] = 0x5A;  // Magic1
         data[1] = 0xA5;  // Magic2
         data[2] = 0xEF;  // ReportTypeInput
-        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(3), lx);
-        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(5), ly);
-        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(7), rx);
-        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(9), ry);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(3),  lx);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(5),  ly);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(7),  rx);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(9),  ry);
         data[11] = faceDpad;
         data[12] = misc;
         data[13] = extra;
         data[14] = system;
         data[15] = ltrigger;
         data[16] = rtrigger;
+        // SDL3 layout: gyro X/Z/Y then accel X/Z/Y (re-ordered to named fields in parser)
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(17), gyroX);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(19), gyroZ);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(21), gyroY);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(23), accelX);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(25), accelZ);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(27), accelY);
         return data;
     }
 
@@ -309,5 +318,68 @@ public class V2ProtocolTests
         var rReport = Mapper.Map(in released);
         Assert.Equal(16384L, rReport.AxisZ);
         Assert.Equal(16384L, rReport.AxisRz);
+    }
+
+    // ── Motion sensor parsing ─────────────────────────────────────────────────
+
+    [Fact]
+    public void Motion_sensors_parse_from_bytes_17_to_28()
+    {
+        var state = V2Protocol.TryParseInputReport(MakeReport(
+            gyroX: 1000, gyroY: -2000, gyroZ: 500,
+            accelX: -100, accelY: 200, accelZ: 300))!.Value;
+
+        Assert.Equal((short)1000,  state.GyroX);
+        Assert.Equal((short)-2000, state.GyroY);
+        Assert.Equal((short)500,   state.GyroZ);
+        Assert.Equal((short)-100,  state.AccelX);
+        Assert.Equal((short)200,   state.AccelY);
+        Assert.Equal((short)300,   state.AccelZ);
+    }
+
+    [Fact]
+    public void Motion_sensors_at_rest_produce_centred_vJoy_axes()
+    {
+        // When all sensors read zero (centred at rest), all motion axes should be at vJoy centre.
+        var state = new ControllerState(); // all zeros
+        var report = Mapper.MotionMap(in state);
+
+        Assert.Equal(16384L, report.AxisX);   // Gyro X
+        Assert.Equal(16384L, report.AxisY);   // Gyro Y
+        Assert.Equal(16384L, report.AxisZ);   // Gyro Z
+        Assert.Equal(16384L, report.AxisRx);  // Accel X
+        Assert.Equal(16384L, report.AxisRy);  // Accel Y
+        Assert.Equal(16384L, report.AxisRz);  // Accel Z
+        Assert.Equal(0u,     report.Buttons);
+        Assert.Equal(Mapper.PovNeutral, report.Pov);
+    }
+
+    [Fact]
+    public void Motion_sensors_at_max_produce_max_vJoy_axes()
+    {
+        var state = new ControllerState
+        {
+            GyroX = 32767, GyroY = 32767, GyroZ = 32767,
+            AccelX = 32767, AccelY = 32767, AccelZ = 32767,
+        };
+        var report = Mapper.MotionMap(in state);
+
+        // All axes should be at or near vJoy maximum (32767).
+        Assert.InRange(report.AxisX, 32766, 32767);
+        Assert.InRange(report.AxisRz, 32766, 32767);
+    }
+
+    [Fact]
+    public void Motion_sensors_at_min_produce_min_vJoy_axes()
+    {
+        var state = new ControllerState
+        {
+            GyroX = -32768, GyroY = -32768, GyroZ = -32768,
+            AccelX = -32768, AccelY = -32768, AccelZ = -32768,
+        };
+        var report = Mapper.MotionMap(in state);
+
+        Assert.Equal(1L, report.AxisX);
+        Assert.Equal(1L, report.AxisRz);
     }
 }

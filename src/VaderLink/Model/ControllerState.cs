@@ -49,6 +49,18 @@ public readonly record struct ControllerState
     public byte LeftTrigger  { get; init; }
     public byte RightTrigger { get; init; }
 
+    // ── Motion sensors (d[17..28] of V2 report, raw int16 signed) ────────────
+    // Gyroscope reports angular velocity; accelerometer reports linear acceleration
+    // (including gravity). Both use the controller's local coordinate frame.
+    // Enable via Settings → Enable motion (gyro/accel) and configure a second
+    // vJoy device (Device 2) with axes X/Y/Z/Rx/Ry/Rz enabled.
+    public short GyroX  { get; init; }
+    public short GyroY  { get; init; }
+    public short GyroZ  { get; init; }
+    public short AccelX { get; init; }
+    public short AccelY { get; init; }
+    public short AccelZ { get; init; }
+
     // ── Battery (populated by the reader from device-info responses) ──────────
     public byte BatteryPercent { get; init; }
     public bool IsCharging     { get; init; }

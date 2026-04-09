@@ -22,7 +22,8 @@ public sealed class App : IDisposable
     private readonly AppConfig       _config;
     private readonly TrayIcon        _trayIcon;
     private readonly VaderHidReader  _hidReader;
-    private readonly IVirtualController _virtualController;
+    private readonly IVirtualController  _virtualController;
+    private readonly IVirtualController? _motionController; // null when motion disabled
 
     private Thread?                  _outputThread;
     private CancellationTokenSource? _cts;
@@ -34,6 +35,13 @@ public sealed class App : IDisposable
         _trayIcon     = new TrayIcon(config);
         _hidReader    = new VaderHidReader();
         _virtualController = new VJoyController(config.VJoyDeviceId);
+
+        if (config.EnableMotion)
+        {
+            _motionController = new VJoyController(config.MotionVJoyDeviceId);
+            _motionController.ErrorOccurred += msg =>
+                _trayIcon.SetError($"vJoy motion error: {msg}");
+        }
 
         // Wire HID reader events → tray icon (all callbacks arrive on UI thread
         // because VaderHidReader captures SynchronizationContext on construction).
@@ -57,7 +65,14 @@ public sealed class App : IDisposable
             _trayIcon.SetError(
                 $"Could not connect vJoy Device {_config.VJoyDeviceId}:\n\n{vJoyError}\n\n" +
                 "See the README for vJoy installation instructions.");
-            // Don't abort — carry on so tray shows the error and user can fix and restart
+        }
+
+        if (_motionController is not null &&
+            !_motionController.Connect(out string motionError))
+        {
+            _trayIcon.SetError(
+                $"Could not connect vJoy Motion Device {_config.MotionVJoyDeviceId}:\n\n{motionError}\n\n" +
+                "In 'Configure vJoy' add Device 2 with axes X/Y/Z/Rx/Ry/Rz enabled.");
         }
 
         // Start background workers
@@ -102,6 +117,9 @@ public sealed class App : IDisposable
 
             var report = Mapper.Map(in state);
 
+            if (_motionController is not null)
+                _motionController.Submit(Mapper.MotionMap(in state));
+
             _virtualController.Submit(in report);
         }
     }
@@ -128,6 +146,7 @@ public sealed class App : IDisposable
 
         _hidReader.Dispose();
         _virtualController.Dispose();
+        _motionController?.Dispose();
         _trayIcon.Dispose();
     }
 }

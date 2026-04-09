@@ -20,7 +20,7 @@ public sealed class SettingsForm : Form
         MaximizeBox     = false;
         MinimizeBox     = false;
         StartPosition   = FormStartPosition.CenterScreen;
-        ClientSize      = new Size(360, 200);
+        ClientSize      = new Size(360, 310);
 
         var deviceIdLabel = new Label
         {
@@ -62,17 +62,62 @@ public sealed class SettingsForm : Form
             AutoSize = true,
         };
 
+        // ── Motion / gyro section ─────────────────────────────────────────────
+        var motionSeparator = new Label
+        {
+            Text      = "─── Motion (Gyro / Accel) ───────────────",
+            Location  = new Point(16, 155),
+            AutoSize  = true,
+            ForeColor = SystemColors.GrayText,
+        };
+
+        var enableMotionCheck = new CheckBox
+        {
+            Text     = "Enable motion axes (requires vJoy Device 2)",
+            Checked  = _config.EnableMotion,
+            Location = new Point(16, 178),
+            AutoSize = true,
+        };
+
+        var motionDeviceIdLabel = new Label
+        {
+            Text     = "Motion vJoy Device ID:",
+            Location = new Point(16, 212),
+            AutoSize = true,
+        };
+
+        var motionDeviceIdSpinner = new NumericUpDown
+        {
+            Minimum  = 1,
+            Maximum  = 16,
+            Value    = _config.MotionVJoyDeviceId,
+            Location = new Point(200, 209),
+            Width    = 60,
+            Enabled  = _config.EnableMotion,
+        };
+
+        enableMotionCheck.CheckedChanged += (_, _) =>
+            motionDeviceIdSpinner.Enabled = enableMotionCheck.Checked;
+
+        var motionNote = new Label
+        {
+            Text      = "Configure vJoy Device 2 with axes X/Y/Z/Rx/Ry/Rz in 'Configure vJoy'.",
+            Location  = new Point(16, 238),
+            Size      = new Size(328, 32),
+            ForeColor = SystemColors.GrayText,
+        };
+
         var saveButton = new Button
         {
             Text     = "Save",
-            Location = new Point(180, 158),
+            Location = new Point(180, 276),
             Width    = 80,
         };
 
         var cancelButton = new Button
         {
             Text     = "Cancel",
-            Location = new Point(270, 158),
+            Location = new Point(270, 276),
             Width    = 80,
         };
 
@@ -82,6 +127,8 @@ public sealed class SettingsForm : Form
             _config.StartMinimized             = startMinCheck.Checked;
             _config.StartWithWindows           = startWithWindowsCheck.Checked;
             _config.ShowConnectionNotifications = notifyCheck.Checked;
+            _config.EnableMotion               = enableMotionCheck.Checked;
+            _config.MotionVJoyDeviceId         = (uint)motionDeviceIdSpinner.Value;
 
             ConfigManager.SetStartWithWindows(_config.StartWithWindows);
             ConfigManager.Save(_config);
@@ -94,6 +141,8 @@ public sealed class SettingsForm : Form
         Controls.AddRange([
             deviceIdLabel, deviceIdSpinner,
             startMinCheck, startWithWindowsCheck, notifyCheck,
+            motionSeparator, enableMotionCheck,
+            motionDeviceIdLabel, motionDeviceIdSpinner, motionNote,
             saveButton, cancelButton,
         ]);
     }
