@@ -4,9 +4,9 @@ using VaderLink.Hid;
 using VaderLink.Mapping;
 using VaderLink.Model;
 using Xunit;
-
+ 
 namespace VaderLink.Tests;
-
+ 
 /// <summary>
 /// Unit tests for V2Protocol byte-level parsing.
 /// These tests run on any platform (no Windows-specific APIs used).
@@ -14,16 +14,14 @@ namespace VaderLink.Tests;
 public class V2ProtocolTests
 {
     // ── Helper: build a minimal valid V2 input report ─────────────────────────
-
+ 
     private static byte[] MakeReport(
         short lx = 0, short ly = 0,
         short rx = 0, short ry = 0,
-        byte faceDpad   = 0,
-        byte misc       = 0,
-        byte extra      = 0,
-        byte system     = 0,
-        byte ltrigger   = 0,
-        byte rtrigger   = 0)
+        byte faceDpad = 0,
+        byte misc     = 0,
+        byte extra    = 0,
+        byte system   = 0)
     {
         var data = new byte[32];
         data[0] = 0x5A;  // Magic1
@@ -37,13 +35,11 @@ public class V2ProtocolTests
         data[12] = misc;
         data[13] = extra;
         data[14] = system;
-        data[15] = ltrigger;
-        data[16] = rtrigger;
         return data;
     }
-
+ 
     // ── TryParseInputReport ───────────────────────────────────────────────────
-
+ 
     [Fact]
     public void Returns_null_when_magic_bytes_are_wrong()
     {
@@ -51,7 +47,7 @@ public class V2ProtocolTests
         data[0] = 0x00; // corrupt magic
         Assert.Null(V2Protocol.TryParseInputReport(data));
     }
-
+ 
     [Fact]
     public void Returns_null_when_report_type_is_not_input()
     {
@@ -59,20 +55,20 @@ public class V2ProtocolTests
         data[2] = 0x01; // not 0xEF
         Assert.Null(V2Protocol.TryParseInputReport(data));
     }
-
+ 
     [Fact]
     public void Returns_null_when_buffer_is_too_short()
     {
         var data = new byte[10]; // shorter than MinReportLength
         Assert.Null(V2Protocol.TryParseInputReport(data));
     }
-
+ 
     [Fact]
     public void Parses_valid_report_without_any_buttons_pressed()
     {
         var data  = MakeReport();
         var state = V2Protocol.TryParseInputReport(data);
-
+ 
         Assert.NotNull(state);
         Assert.False(state!.Value.ButtonA);
         Assert.False(state!.Value.ButtonB);
@@ -81,9 +77,9 @@ public class V2ProtocolTests
         Assert.Equal(0, state!.Value.LeftStickX);
         Assert.Equal(0, state!.Value.LeftStickY);
     }
-
+ 
     // ── Face buttons (high nibble of d[11]) ───────────────────────────────────
-
+ 
     [Theory]
     [InlineData(0x10, true,  false, false, false)]  // A
     [InlineData(0x20, false, true,  false, false)]  // B
@@ -99,7 +95,7 @@ public class V2ProtocolTests
         Assert.Equal(expectX, state.ButtonX);
         Assert.Equal(expectY, state.ButtonY);
     }
-
+ 
     [Fact]
     public void Button_Y_is_in_misc_byte_not_face_byte()
     {
@@ -110,9 +106,9 @@ public class V2ProtocolTests
         Assert.False(state.ButtonB);
         Assert.False(state.ButtonX);
     }
-
+ 
     // ── D-pad (low nibble of d[11]) ───────────────────────────────────────────
-
+ 
     [Theory]
     [InlineData(0x01, true,  false, false, false)]  // Up
     [InlineData(0x02, false, true,  false, false)]  // Right
@@ -129,9 +125,9 @@ public class V2ProtocolTests
         Assert.Equal(expectDown,  state.DPadDown);
         Assert.Equal(expectLeft,  state.DPadLeft);
     }
-
+ 
     // ── Extra buttons (d[13]) ─────────────────────────────────────────────────
-
+ 
     [Theory]
     [InlineData(0x01, nameof(ControllerState.ButtonC))]
     [InlineData(0x02, nameof(ControllerState.ButtonZ))]
@@ -144,7 +140,7 @@ public class V2ProtocolTests
     public void Extra_buttons_each_map_to_correct_bit(byte mask, string propertyName)
     {
         var state = V2Protocol.TryParseInputReport(MakeReport(extra: mask))!.Value;
-
+ 
         bool value = propertyName switch
         {
             nameof(ControllerState.ButtonC)  => state.ButtonC,
@@ -157,10 +153,10 @@ public class V2ProtocolTests
             nameof(ControllerState.ButtonRM) => state.ButtonRM,
             _ => throw new ArgumentException(propertyName),
         };
-
+ 
         Assert.True(value, $"{propertyName} should be true when bit {mask:X2} is set");
     }
-
+ 
     [Fact]
     public void All_extra_buttons_set_when_all_bits_set()
     {
@@ -174,9 +170,9 @@ public class V2ProtocolTests
         Assert.True(state.ButtonLM);
         Assert.True(state.ButtonRM);
     }
-
+ 
     // ── Analog sticks ─────────────────────────────────────────────────────────
-
+ 
     [Theory]
     [InlineData(0,      0)]
     [InlineData(32767,  32767)]
@@ -187,7 +183,7 @@ public class V2ProtocolTests
         var state = V2Protocol.TryParseInputReport(MakeReport(lx: value))!.Value;
         Assert.Equal(expected, state.LeftStickX);
     }
-
+ 
     [Theory]
     [InlineData(0,      0)]
     [InlineData(32767,  32767)]
@@ -197,9 +193,9 @@ public class V2ProtocolTests
         var state = V2Protocol.TryParseInputReport(MakeReport(ry: value))!.Value;
         Assert.Equal(expected, state.RightStickY);
     }
-
+ 
     // ── Report-ID shift ───────────────────────────────────────────────────────
-
+ 
     [Fact]
     public void Handles_report_ID_prefix_transparently()
     {
@@ -209,29 +205,14 @@ public class V2ProtocolTests
         var withId = new byte[inner.Length + 1];
         withId[0] = 0x01; // report ID
         inner.CopyTo(withId, 1);
-
+ 
         var state = V2Protocol.TryParseInputReport(withId);
         Assert.NotNull(state);
         Assert.True(state!.Value.ButtonM1);
     }
-
-    // ── Trigger parsing (d[15]/d[16]) ─────────────────────────────────────────
-
-    [Theory]
-    [InlineData(0,   0,   0,   0)]
-    [InlineData(255, 0,   255, 0)]
-    [InlineData(0,   255, 0,   255)]
-    [InlineData(128, 64,  128, 64)]
-    public void Triggers_parse_from_bytes_15_and_16(
-        byte lt, byte rt, byte expectedLt, byte expectedRt)
-    {
-        var state = V2Protocol.TryParseInputReport(MakeReport(ltrigger: lt, rtrigger: rt))!.Value;
-        Assert.Equal(expectedLt, state.LeftTrigger);
-        Assert.Equal(expectedRt, state.RightTrigger);
-    }
-
+ 
     // ── Mapper axis scaling ───────────────────────────────────────────────────
-
+ 
     [Theory]
     [InlineData(0,      16384)]   // centre → vJoy centre
     [InlineData(32767,  32767)]   // max → vJoy max
@@ -242,19 +223,19 @@ public class V2ProtocolTests
         // Allow ±1 for rounding
         Assert.InRange(actual, expected - 1, expected + 1);
     }
-
+ 
     [Theory]
-    [InlineData(0,   16384)]   // trigger off   → vJoy centre (neutral; Keysticks sees "not pressed")
-    [InlineData(255, 1)]       // trigger full  → vJoy min   (max deflection downward from centre)
-    [InlineData(128, 8192)]    // trigger half  → approx midpoint (16384 - 8192)
+    [InlineData(0,   16384)]   // trigger off  → vJoy centre (neutral; Keysticks sees "not pressed")
+    [InlineData(255, 32767)]   // trigger full  → vJoy max
+    [InlineData(128, 24608)]   // trigger half  → approx midpoint (16384 + 8224)
     public void Trigger_axis_scales_to_vJoy_range(byte raw, long expected)
     {
         long actual = Mapper.ScaleTriggerAxis(raw);
         Assert.InRange(actual, expected - 2, expected + 2);
     }
-
+ 
     // ── Mapper POV hat ────────────────────────────────────────────────────────
-
+ 
     [Theory]
     [InlineData(true,  false, false, false, 0u)]          // N
     [InlineData(true,  true,  false, false, 4500u)]       // NE
@@ -265,49 +246,31 @@ public class V2ProtocolTests
     {
         Assert.Equal(expected, Mapper.ComputePov(up, right, down, left));
     }
-
+ 
     // ── Mapper full round-trip ────────────────────────────────────────────────
-
+ 
     [Fact]
     public void Mapper_sets_correct_button_bits_for_all_standard_buttons()
     {
         var state = new ControllerState
         {
-            ButtonA  = true,   // bit 0  → vJoy button 1
-            ButtonB  = true,   // bit 1  → vJoy button 2
+            ButtonA = true,    // bit 0  → vJoy button 1
+            ButtonB = true,    // bit 1  → vJoy button 2
             ButtonLB = true,   // bit 4  → vJoy button 5
-            ButtonC  = true,   // bit 11 → vJoy button 12
+            ButtonC = true,    // bit 11 → vJoy button 12
             ButtonRM = true,   // bit 18 → vJoy button 19
-            ButtonFn = true,   // bit 23 → vJoy button 24 (Fn/Circle)
         };
-
-        var report = Mapper.Map(in state);
-
+ 
+        var report = Mapper.Map(in state, leftTrigger: 0, rightTrigger: 0);
+ 
         Assert.True((report.Buttons & (1u << 0))  != 0,  "Button A");
         Assert.True((report.Buttons & (1u << 1))  != 0,  "Button B");
         Assert.True((report.Buttons & (1u << 4))  != 0,  "LB");
         Assert.True((report.Buttons & (1u << 11)) != 0,  "C");
         Assert.True((report.Buttons & (1u << 18)) != 0,  "RM");
-        Assert.True((report.Buttons & (1u << 23)) != 0,  "Fn/Circle");
-
+ 
         // Unset buttons should be 0
         Assert.True((report.Buttons & (1u << 2))  == 0,  "X should be off");
         Assert.True((report.Buttons & (1u << 12)) == 0,  "Z should be off");
-    }
-
-    [Fact]
-    public void Trigger_round_trip_through_mapper()
-    {
-        // Fully pressed triggers should map to vJoy axis minimum (1).
-        var state = new ControllerState { LeftTrigger = 255, RightTrigger = 255 };
-        var report = Mapper.Map(in state);
-        Assert.Equal(1L, report.AxisZ);
-        Assert.Equal(1L, report.AxisRz);
-
-        // Released triggers should map to vJoy axis centre (16384).
-        var released = new ControllerState { LeftTrigger = 0, RightTrigger = 0 };
-        var rReport = Mapper.Map(in released);
-        Assert.Equal(16384L, rReport.AxisZ);
-        Assert.Equal(16384L, rReport.AxisRz);
     }
 }
