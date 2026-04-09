@@ -1,7 +1,7 @@
 using VaderLink.Config;
-
+ 
 namespace VaderLink.Tray;
-
+ 
 /// <summary>
 /// Minimal settings window reachable from the tray icon context menu.
 /// Kept intentionally simple for v1.
@@ -10,11 +10,11 @@ public sealed class SettingsForm : Form
 {
     private readonly AppConfig _config;
     public event Action<AppConfig>? ConfigSaved;
-
+ 
     public SettingsForm(AppConfig config)
     {
         _config = config;
-
+ 
         Text            = "VaderLink Settings";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox     = false;
@@ -28,7 +28,7 @@ public sealed class SettingsForm : Form
             Location = new Point(16, 20),
             AutoSize = true,
         };
-
+ 
         var deviceIdSpinner = new NumericUpDown
         {
             Minimum  = 1,
@@ -37,7 +37,7 @@ public sealed class SettingsForm : Form
             Location = new Point(160, 17),
             Width    = 60,
         };
-
+ 
         var startMinCheck = new CheckBox
         {
             Text     = "Start minimised to tray",
@@ -45,7 +45,7 @@ public sealed class SettingsForm : Form
             Location = new Point(16, 60),
             AutoSize = true,
         };
-
+ 
         var startWithWindowsCheck = new CheckBox
         {
             Text     = "Start with Windows",
@@ -53,7 +53,7 @@ public sealed class SettingsForm : Form
             Location = new Point(16, 90),
             AutoSize = true,
         };
-
+ 
         var notifyCheck = new CheckBox
         {
             Text     = "Show connection notifications",
@@ -113,14 +113,14 @@ public sealed class SettingsForm : Form
             Location = new Point(180, 276),
             Width    = 80,
         };
-
+ 
         var cancelButton = new Button
         {
             Text     = "Cancel",
             Location = new Point(270, 276),
             Width    = 80,
         };
-
+ 
         saveButton.Click += (_, _) =>
         {
             _config.VJoyDeviceId               = (uint)deviceIdSpinner.Value;
@@ -135,9 +135,9 @@ public sealed class SettingsForm : Form
             ConfigSaved?.Invoke(_config);
             Close();
         };
-
+ 
         cancelButton.Click += (_, _) => Close();
-
+ 
         Controls.AddRange([
             deviceIdLabel, deviceIdSpinner,
             startMinCheck, startWithWindowsCheck, notifyCheck,

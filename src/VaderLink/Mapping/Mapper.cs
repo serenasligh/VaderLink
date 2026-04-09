@@ -1,8 +1,8 @@
 using VaderLink.Model;
 using VaderLink.Output;
-
+ 
 namespace VaderLink.Mapping;
-
+ 
 /// <summary>
 /// Translates a <see cref="ControllerState"/> (plus raw trigger bytes from XInput)
 /// into a <see cref="VJoyReport"/> that VJoyController feeds to the vJoy driver.
@@ -19,8 +19,8 @@ namespace VaderLink.Mapping;
 ///   Button  8  → R3             Button 20 → DPad Up
 ///   Button  9  → Start          Button 21 → DPad Right
 ///   Button 10  → Back           Button 22 → DPad Down
-///   Button 11  → Turbo (d[14] bit 0x02)   Button 23 → DPad Left
-///   Button 12  → C              Button 24 → Fn/Circle (d[14] bit 0x01)
+///   Button 11  → Guide          Button 23 → DPad Left
+///   Button 12  → C
 ///
 /// Axes:
 ///   X  = Left Stick X       Rx = Right Stick X
@@ -35,10 +35,10 @@ public static class Mapper
     private const long VJoyAxisMin    = 1;
     private const long VJoyAxisMax    = 32767;
     private const long VJoyAxisCentre = 16384;
-
+ 
     // POV hat "neutral" sentinel as defined by the vJoy SDK.
     public const uint PovNeutral = 0xFFFFFFFF;
-
+ 
     /// <summary>
     /// Converts a signed int16 stick axis (–32768..32767) to the vJoy 1..32767 range.
     /// Pass <paramref name="invert"/> = true for Y axes: HID convention is Y-down = positive,
@@ -51,18 +51,18 @@ public static class Mapper
         if (invert) shifted = 65535L - shifted; // flip direction without int16 overflow risk
         return VJoyAxisMin + shifted * (VJoyAxisMax - VJoyAxisMin) / 65535L;
     }
-
+ 
     /// <summary>
-    /// Converts a trigger byte (0..255) to the vJoy centre..min range (16384..1).
-    /// Trigger at rest (0) sits at axis centre — Keysticks treats centre as neutral.
-    /// Fully pressed (255) reaches axis minimum (1). The axis deflects downward from
-    /// centre so that Keysticks' deadzone logic correctly detects trigger presses.
+    /// Converts a trigger byte (0..255) to the vJoy centre..max range (16384..32767).
+    /// Trigger at rest (0) sits exactly at axis centre, which Keysticks treats as neutral.
+    /// Fully pressed (255) reaches axis maximum. This prevents the "always deflected"
+    /// appearance in Keysticks that occurred when rest mapped to axis minimum.
     /// </summary>
     public static long ScaleTriggerAxis(byte raw)
     {
-        return VJoyAxisCentre - (long)raw * (VJoyAxisCentre - VJoyAxisMin) / 255L;
+        return VJoyAxisCentre + (long)raw * (VJoyAxisMax - VJoyAxisCentre) / 255L;
     }
-
+ 
     /// <summary>
     /// Computes a continuous POV hat value (tenths of a degree, 0..35999)
     /// from the four D-pad direction booleans.
@@ -83,24 +83,24 @@ public static class Mapper
             _                            => PovNeutral,
         };
     }
-
+ 
     /// <summary>
-    /// Builds a complete <see cref="VJoyReport"/> from a controller state snapshot.
-    /// Trigger axes are read directly from the state (d[15]/d[16] of the V2 HID report).
+    /// Builds a complete <see cref="VJoyReport"/> from a controller state snapshot
+    /// and the latest trigger bytes from the XInput poller.
     /// </summary>
-    public static VJoyReport Map(in ControllerState s)
+    public static VJoyReport Map(in ControllerState s, byte leftTrigger, byte rightTrigger)
     {
         // ── Axes ───────────────────────────────────────────────────────────────
         long axisX  = ScaleStickAxis(s.LeftStickX);
         long axisY  = ScaleStickAxis(s.LeftStickY,  invert: true); // HID Y-down → Y-up
         long axisRx = ScaleStickAxis(s.RightStickX);
         long axisRy = ScaleStickAxis(s.RightStickY, invert: true); // HID Y-down → Y-up
-        long axisZ  = ScaleTriggerAxis(s.LeftTrigger);
-        long axisRz = ScaleTriggerAxis(s.RightTrigger);
-
+        long axisZ  = ScaleTriggerAxis(leftTrigger);
+        long axisRz = ScaleTriggerAxis(rightTrigger);
+ 
         // ── Buttons (vJoy uses a bitmask; button N = bit N-1) ─────────────────
         uint buttons = 0;
-
+ 
         if (s.ButtonA)     buttons |= 1u << 0;   // Button 1
         if (s.ButtonB)     buttons |= 1u << 1;   // Button 2
         if (s.ButtonX)     buttons |= 1u << 2;   // Button 3
@@ -111,7 +111,7 @@ public static class Mapper
         if (s.ButtonR3)    buttons |= 1u << 7;   // Button 8
         if (s.ButtonStart) buttons |= 1u << 8;   // Button 9
         if (s.ButtonBack)  buttons |= 1u << 9;   // Button 10
-        if (s.ButtonGuide) buttons |= 1u << 10;  // Button 11 (Turbo)
+        if (s.ButtonGuide) buttons |= 1u << 10;  // Button 11
         if (s.ButtonC)     buttons |= 1u << 11;  // Button 12
         if (s.ButtonZ)     buttons |= 1u << 12;  // Button 13
         if (s.ButtonM1)    buttons |= 1u << 13;  // Button 14
@@ -124,11 +124,10 @@ public static class Mapper
         if (s.DPadRight)   buttons |= 1u << 20;  // Button 21
         if (s.DPadDown)    buttons |= 1u << 21;  // Button 22
         if (s.DPadLeft)    buttons |= 1u << 22;  // Button 23
-        if (s.ButtonFn)    buttons |= 1u << 23;  // Button 24 (Fn/Circle)
-
+ 
         // ── POV hat ───────────────────────────────────────────────────────────
         uint pov = ComputePov(s.DPadUp, s.DPadRight, s.DPadDown, s.DPadLeft);
-
+ 
         return new VJoyReport
         {
             AxisX  = axisX,  AxisY  = axisY,

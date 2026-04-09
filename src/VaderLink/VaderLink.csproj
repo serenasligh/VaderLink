@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
+ 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -15,17 +15,17 @@
     <!-- Embedded exe icon. Run tools/Convert-Icon.py first to generate this file. -->
     <ApplicationIcon>Resources\icon_connected.ico</ApplicationIcon>
   </PropertyGroup>
-
+ 
   <ItemGroup>
     <PackageReference Include="HidSharp" Version="2.6.4" />
     <PackageReference Include="System.Text.Json" Version="8.0.0" />
   </ItemGroup>
-
+ 
   <ItemGroup>
     <!-- vJoyInterface.dll is loaded at runtime via P/Invoke; place alongside the exe -->
     <!-- The user must supply vJoyInterface.dll from their vJoy installation -->
   </ItemGroup>
-
+ 
   <ItemGroup>
     <!-- Icon files are loaded at runtime; TrayIcon.cs falls back to SystemIcons.Application
          if any file is missing. Replace the placeholder 1x1 ICOs with real icons when ready. -->
@@ -33,5 +33,5 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-
+ 
 </Project>

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
-
+ 
 namespace VaderLink.Output;
-
+ 
 /// <summary>
 /// Virtual controller output via the vJoy driver.
 ///
@@ -19,28 +19,28 @@ namespace VaderLink.Output;
 public sealed class VJoyController : IVirtualController
 {
     public string Name => $"vJoy Device {_deviceId}";
-
+ 
     public event Action<string>? ErrorOccurred;
-
+ 
     private readonly uint _deviceId;
     private bool          _connected;
     private bool          _disposed;
-
+ 
     public VJoyController(uint deviceId = 1)
     {
         _deviceId = deviceId;
     }
-
+ 
     public bool Connect(out string error)
     {
         error = string.Empty;
-
+ 
         if (!vJoyEnabled())
         {
             error = "vJoy driver is not enabled. Please install vJoy and configure Device 1.";
             return false;
         }
-
+ 
         // Check version compatibility
         uint dllVer = 0, drvVer = 0;
         if (!DriverMatch(ref dllVer, ref drvVer))
@@ -49,14 +49,14 @@ public sealed class VJoyController : IVirtualController
                     "Please reinstall vJoy.";
             return false;
         }
-
+ 
         var status = GetVJDStatus(_deviceId);
         switch (status)
         {
             case VjdStat.VJD_STAT_OWN:
                 // We already own it — shouldn't happen on first connect but handle gracefully
                 break;
-
+ 
             case VjdStat.VJD_STAT_FREE:
                 if (!AcquireVJD(_deviceId))
                 {
@@ -65,37 +65,37 @@ public sealed class VJoyController : IVirtualController
                     return false;
                 }
                 break;
-
+ 
             case VjdStat.VJD_STAT_BUSY:
                 error = $"vJoy Device {_deviceId} is in use by another application.";
                 return false;
-
+ 
             case VjdStat.VJD_STAT_MISS:
                 error = $"vJoy Device {_deviceId} does not exist. " +
                         "Open 'Configure vJoy' and enable Device 1 with the required axes and buttons.";
                 return false;
-
+ 
             default:
                 error = $"vJoy Device {_deviceId} is in an unknown state ({status}).";
                 return false;
         }
-
+ 
         ResetVJD(_deviceId);
         _connected = true;
         return true;
     }
-
+ 
     public void Disconnect()
     {
         if (!_connected) return;
         RelinquishVJD(_deviceId);
         _connected = false;
     }
-
+ 
     public void Submit(in VJoyReport report)
     {
         if (!_connected) return;
-
+ 
         var pos = new JoystickPosition
         {
             bDevice = (byte)_deviceId,
@@ -108,7 +108,7 @@ public sealed class VJoyController : IVirtualController
             lButtons  = (int)report.Buttons,
             bHats     = report.Pov,
         };
-
+ 
         if (!UpdateVJD(_deviceId, ref pos))
         {
             // Device may have been unplugged or driver reset; signal error
@@ -116,42 +116,42 @@ public sealed class VJoyController : IVirtualController
             _connected = false;
         }
     }
-
+ 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         Disconnect();
     }
-
+ 
     // ── P/Invoke — vJoyInterface.dll ─────────────────────────────────────────
-
+ 
     [DllImport("vJoyInterface.dll", CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool vJoyEnabled();
-
+ 
     [DllImport("vJoyInterface.dll", CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DriverMatch(ref uint dllVer, ref uint drvVer);
-
+ 
     [DllImport("vJoyInterface.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern VjdStat GetVJDStatus(uint rID);
-
+ 
     [DllImport("vJoyInterface.dll", CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AcquireVJD(uint rID);
-
+ 
     [DllImport("vJoyInterface.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern void RelinquishVJD(uint rID);
-
+ 
     [DllImport("vJoyInterface.dll", CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ResetVJD(uint rID);
-
+ 
     [DllImport("vJoyInterface.dll", CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool UpdateVJD(uint rID, ref JoystickPosition pData);
-
+ 
     private enum VjdStat
     {
         VJD_STAT_OWN  = 0,
@@ -160,7 +160,7 @@ public sealed class VJoyController : IVirtualController
         VJD_STAT_MISS = 3,
         VJD_STAT_UNKN = 4,
     }
-
+ 
     // Must exactly match the JOYSTICK_POSITION struct in the vJoy SDK.
     [StructLayout(LayoutKind.Sequential)]
     private struct JoystickPosition
